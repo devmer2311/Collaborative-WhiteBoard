@@ -4,6 +4,7 @@ const DrawingCanvas = ({ socket, roomId, settings, onCursorMove }) => {
   const canvasRef = useRef(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPath, setCurrentPath] = useState([]);
+  const [lastTouch, setLastTouch] = useState(null);
 
   const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -87,19 +88,27 @@ const DrawingCanvas = ({ socket, roomId, settings, onCursorMove }) => {
     };
   }, [socket]);
 
-  const getMousePos = (e) => {
+  const getEventPos = (e) => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
+    
+    // Handle both mouse and touch events
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: clientX - rect.left,
+      y: clientY - rect.top
     };
   };
 
   const startDrawing = (e) => {
-    const pos = getMousePos(e);
+    e.preventDefault(); // Prevent scrolling on touch
+    
+    const pos = getEventPos(e);
     setIsDrawing(true);
     setCurrentPath([pos]);
+    setLastTouch(pos);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -123,9 +132,11 @@ const DrawingCanvas = ({ socket, roomId, settings, onCursorMove }) => {
 
   const draw = (e) => {
     if (!isDrawing) return;
+    e.preventDefault(); // Prevent scrolling on touch
 
-    const pos = getMousePos(e);
+    const pos = getEventPos(e);
     setCurrentPath(prev => [...prev, pos]);
+    setLastTouch(pos);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -141,11 +152,13 @@ const DrawingCanvas = ({ socket, roomId, settings, onCursorMove }) => {
     }
   };
 
-  const stopDrawing = () => {
+  const stopDrawing = (e) => {
     if (!isDrawing) return;
+    e.preventDefault();
     
     setIsDrawing(false);
     setCurrentPath([]);
+    setLastTouch(null);
 
     if (socket) {
       socket.emit('draw-end', { roomId });
@@ -153,7 +166,7 @@ const DrawingCanvas = ({ socket, roomId, settings, onCursorMove }) => {
   };
 
   const handleMouseMove = (e) => {
-    const pos = getMousePos(e);
+    const pos = getEventPos(e);
     onCursorMove(pos);
     
     if (isDrawing) {
@@ -161,14 +174,42 @@ const DrawingCanvas = ({ socket, roomId, settings, onCursorMove }) => {
     }
   };
 
+  const handleTouchMove = (e) => {
+    e.preventDefault(); // Prevent scrolling
+    
+    const pos = getEventPos(e);
+    onCursorMove(pos);
+    
+    if (isDrawing) {
+      draw(e);
+    }
+  };
+
+  // Touch event handlers
+  const handleTouchStart = (e) => {
+    startDrawing(e);
+  };
+
+  const handleTouchEnd = (e) => {
+    stopDrawing(e);
+  };
+
   return (
     <canvas
       ref={canvasRef}
-      className="w-full h-full cursor-crosshair bg-white"
+      className="w-full h-full cursor-crosshair bg-white touch-none"
+      // Mouse events
       onMouseDown={startDrawing}
       onMouseMove={handleMouseMove}
       onMouseUp={stopDrawing}
       onMouseLeave={stopDrawing}
+      // Touch events
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+      // Prevent context menu on long press
+      onContextMenu={(e) => e.preventDefault()}
     />
   );
 };
