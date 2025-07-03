@@ -79,6 +79,67 @@ const Whiteboard = ({ roomId, onLeaveRoom }) => {
     };
   }, [roomId]);
 
+  // Prevent page scrolling and zooming on mobile
+  useEffect(() => {
+    // Prevent default touch behaviors that cause scrolling
+    const preventDefaultTouch = (e) => {
+      // Allow scrolling only in toolbar area
+      const toolbar = document.querySelector('[data-toolbar]');
+      if (toolbar && toolbar.contains(e.target)) {
+        return;
+      }
+      
+      // Prevent default for canvas area
+      if (e.touches && e.touches.length > 1) {
+        // Prevent pinch zoom
+        e.preventDefault();
+      }
+    };
+
+    const preventScroll = (e) => {
+      // Prevent scrolling when touching the canvas area
+      const toolbar = document.querySelector('[data-toolbar]');
+      if (toolbar && toolbar.contains(e.target)) {
+        return;
+      }
+      e.preventDefault();
+    };
+
+    // Add event listeners
+    document.addEventListener('touchstart', preventDefaultTouch, { passive: false });
+    document.addEventListener('touchmove', preventScroll, { passive: false });
+    document.addEventListener('touchend', preventDefaultTouch, { passive: false });
+
+    // Prevent zoom on double tap
+    let lastTouchEnd = 0;
+    const preventZoom = (e) => {
+      const now = (new Date()).getTime();
+      if (now - lastTouchEnd <= 300) {
+        e.preventDefault();
+      }
+      lastTouchEnd = now;
+    };
+    document.addEventListener('touchend', preventZoom, { passive: false });
+
+    // Set viewport meta tag to prevent zooming
+    const viewport = document.querySelector('meta[name=viewport]');
+    if (viewport) {
+      viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+    }
+
+    return () => {
+      document.removeEventListener('touchstart', preventDefaultTouch);
+      document.removeEventListener('touchmove', preventScroll);
+      document.removeEventListener('touchend', preventDefaultTouch);
+      document.removeEventListener('touchend', preventZoom);
+      
+      // Restore viewport
+      if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0');
+      }
+    };
+  }, []);
+
   // Handle window resize for responsive behavior
   useEffect(() => {
     const handleResize = () => {
@@ -123,13 +184,13 @@ const Whiteboard = ({ roomId, onLeaveRoom }) => {
   }, [isToolbarOpen]);
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-3 sm:px-4 py-3 flex items-center justify-between shadow-sm relative z-50 flex-shrink-0">
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden touch-none">
+      {/* Fixed Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200 px-3 sm:px-4 py-3 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button
             onClick={handleLeaveRoom}
-            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 flex-shrink-0"
+            className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-all duration-200 flex-shrink-0 touch-manipulation"
           >
             <ArrowLeft className="w-4 h-4" />
             <span className="font-medium hidden sm:inline">Leave Room</span>
@@ -177,17 +238,19 @@ const Whiteboard = ({ roomId, onLeaveRoom }) => {
         </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 flex relative min-h-0">
+      {/* Main Content - with top padding to account for fixed header */}
+      <div className="flex-1 flex relative min-h-0 pt-16">
         {/* Toolbar */}
-        <Toolbar 
-          settings={drawingSettings}
-          onSettingsChange={setDrawingSettings}
-          socket={socket}
-          roomId={roomId}
-          isOpen={isToolbarOpen}
-          onToggle={handleToolbarToggle}
-        />
+        <div data-toolbar>
+          <Toolbar 
+            settings={drawingSettings}
+            onSettingsChange={setDrawingSettings}
+            socket={socket}
+            roomId={roomId}
+            isOpen={isToolbarOpen}
+            onToggle={handleToolbarToggle}
+          />
+        </div>
 
         {/* Canvas Area */}
         <div className="flex-1 relative overflow-hidden">
