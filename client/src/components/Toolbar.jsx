@@ -58,10 +58,11 @@ const Toolbar = ({ settings, onSettingsChange, socket, roomId, isOpen, onToggle 
 
   return (
     <>
-      {/* Mobile Toggle Button - Only visible on small screens */}
+      {/* Mobile Toggle Button - Fixed position, higher z-index */}
       <button
         onClick={toggleCollapse}
         className="md:hidden fixed top-20 left-4 z-50 bg-white border border-gray-200 rounded-lg p-2 shadow-lg hover:shadow-xl transition-all duration-200 touch-manipulation"
+        style={{ zIndex: 60 }}
         aria-label={isOpen ? "Close toolbar" : "Open toolbar"}
       >
         {isOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
@@ -71,8 +72,8 @@ const Toolbar = ({ settings, onSettingsChange, socket, roomId, isOpen, onToggle 
       <div className={`
         bg-white border-r border-gray-200 shadow-sm transition-all duration-300 ease-in-out flex-shrink-0
         ${isMobile 
-          ? `fixed top-0 left-0 z-40 w-72 h-full transform ${toolbarVisible ? 'translate-x-0' : '-translate-x-full'}`
-          : `relative ${toolbarCollapsed ? 'w-16' : 'w-64'}`
+          ? `fixed top-16 left-0 z-40 w-72 h-[calc(100vh-4rem)] transform ${toolbarVisible ? 'translate-x-0' : '-translate-x-full'} overflow-y-auto`
+          : `relative ${toolbarCollapsed ? 'w-16' : 'w-64'} h-full`
         }
       `}>
         
@@ -202,7 +203,7 @@ const Toolbar = ({ settings, onSettingsChange, socket, roomId, isOpen, onToggle 
               <div className="pt-4 border-t border-gray-200">
                 <button
                   onClick={() => onToggle(false)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 transition-all duration-200 font-medium"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg border border-gray-200 hover:bg-gray-200 transition-all duration-200 font-medium touch-manipulation"
                 >
                   <X className="w-4 h-4" />
                   Close Toolbar
